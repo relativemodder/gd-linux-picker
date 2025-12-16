@@ -1,0 +1,3 @@
+[submodule "picker-linux-side"]
+	path = picker-linux-side
+	url = https://github.com/relativemodder/picker-linux-side.git
