@@ -5,6 +5,9 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 project(gd-linux-picker VERSION 1.0.0)
 
+add_compile_definitions(WIN32_LEAN_AND_MEAN)
+add_compile_definitions(_WINSOCKAPI_)
+
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

@@ -2,7 +2,7 @@ CC      = winegcc
 CFLAGS  = -O2 -Wall -static
 LDFLAGS =
 
-TARGET  = starter-proxy
+TARGET  = starterproxy
 SRCS    = main.c
 OBJS    = $(SRCS:.c=.o)
 

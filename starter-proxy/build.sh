@@ -3,5 +3,5 @@
 make
 
 rm main.o
-rm starter-proxy.exe
-mv starter-proxy.exe.so ../resources/
+rm starterproxy.exe
+mv starterproxy.exe.so ../resources/

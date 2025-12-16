@@ -14,7 +14,7 @@
 	"resources": {
 		"files": [
 			"resources/picker-linux-side",
-			"resources/starter-proxy.exe.so"
+			"resources/starterproxy.exe.so"
 		]
 	}
 }

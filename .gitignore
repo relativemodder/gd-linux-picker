@@ -13,6 +13,7 @@
 
 # Compiled Dynamic libraries
 *.so
+!**/resources/*.so
 *.dylib
 *.dll
 
