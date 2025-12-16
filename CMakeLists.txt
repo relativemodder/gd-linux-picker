@@ -8,7 +8,7 @@ project(gd-linux-picker VERSION 1.0.0)
 add_compile_definitions(WIN32_LEAN_AND_MEAN)
 add_compile_definitions(_WINSOCKAPI_)
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 

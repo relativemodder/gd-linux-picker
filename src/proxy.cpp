@@ -1,16 +1,4 @@
-
-#include <Geode/Geode.hpp>
-#include <Geode/modify/MenuLayer.hpp>
-#include <Geode/modify/CCApplication.hpp>
-#include "gd-file-picker.h"
-
-using namespace geode::prelude;
-
-
-HANDLE g_pickerProxyProc;
-HANDLE g_watchdogMutex = NULL;
-GDFilePicker* g_filePicker = nullptr;
-
+#include "proxy.hpp"
 
 class $modify(PickerApplication, CCApplication) {
     void platformShutdown() {
@@ -122,7 +110,7 @@ class $modify(PickerLayer, MenuLayer) {
             log::info("Selected {} files", files.size());
 
             for (auto file : files) {
-                log::debug("File {};", file);
+                log::debug("File {};", unixToDosPath(file));
             }
 
         } catch (const std::exception& e) {
