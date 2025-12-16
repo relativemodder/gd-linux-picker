@@ -34,7 +34,7 @@ geode::Task<geode::Result<std::filesystem::path>> linuxFilePick(
                     std::string dosPath = unixToDosPath(unixPath);
 
                     // Используем u8path для корректной обработки UTF-8
-                    std::filesystem::path filePath = std::filesystem::u8path(dosPath);
+                    std::filesystem::path filePath = pathFromUtf8(dosPath);
 
                     resolve(geode::Result<std::filesystem::path, std::string>(geode::Ok(filePath)));
                 } catch (const std::exception& ex) {
@@ -49,7 +49,7 @@ geode::Task<geode::Result<std::filesystem::path>> linuxFilePick(
                     std::string unixPath = result;
                     std::string dosPath = unixToDosPath(unixPath);
 
-                    std::filesystem::path filePath = std::filesystem::u8path(dosPath);
+                    std::filesystem::path filePath = pathFromUtf8(dosPath);
 
                     resolve(geode::Result<std::filesystem::path, std::string>(geode::Ok(filePath)));
                 } catch (const std::exception& ex) {
@@ -76,7 +76,7 @@ geode::Task<geode::Result<std::vector<std::filesystem::path>>> linuxPickMany(
 
                 for (const auto& unixPath : result) {
                     std::string dosPath = unixToDosPath(unixPath);
-                    std::filesystem::path filePath = std::filesystem::u8path(dosPath);
+                    std::filesystem::path filePath = pathFromUtf8(dosPath);
 
                     paths.push_back(filePath);
 
