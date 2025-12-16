@@ -6,6 +6,8 @@
 
 using namespace geode::prelude;
 
+std::wstring to_wstring(const char* str);
+std::wstring to_wstring(const std::string& str);
 
 inline HANDLE g_pickerProxyProc;
 inline HANDLE g_watchdogMutex = NULL;

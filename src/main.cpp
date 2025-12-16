@@ -1,135 +1,143 @@
 #include "gd-file-picker.h"
 #include "proxy.hpp"
 #include "winepath.hpp"
-#include <codecvt>
-#include <locale>
 
-static std::filesystem::path pathFromUtf8(const std::string& utf8Path) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    std::wstring wide = converter.from_bytes(utf8Path);
-    return std::filesystem::path(wide);
+#include <filesystem>
+#include <string>
+#include <vector>
+
+namespace {
+
+using Path = std::filesystem::path;
+using PickMode = geode::utils::file::PickMode;
+using FilePickOptions = geode::utils::file::FilePickOptions;
+
+
+template <class T>
+void resolveOk(auto& resolve, T&& value) {
+    resolve(geode::Result<std::decay_t<T>, std::string>(geode::Ok(std::forward<T>(value))));
 }
 
-bool linuxOpenFolder(std::filesystem::path const& path){
-    std::string unixPath = dosToUnixPath(path.string());
+void resolveErr(auto& resolve, const std::exception& ex) {
+    resolve(geode::Result<void, std::string>(geode::Err(ex.what())));
+}
 
-    g_filePicker->openLocation({unixPath});
+Path unixToPath(const std::string& unixPath) {
+    return std::filesystem::path{ std::u8string(unixPath.begin(), unixPath.end()) };
+}
 
+}
+
+bool linuxOpenFolder(const Path& path) {
+    const std::string unixPath = dosToUnixPath(path.string());
+    g_filePicker->openLocation({ unixPath });
     return true;
 }
 
-geode::Task<geode::Result<std::filesystem::path>> linuxFilePick(
-    geode::utils::file::PickMode mode, const geode::utils::file::FilePickOptions &options
+geode::Task<geode::Result<Path>> linuxFilePick(
+    PickMode mode, const FilePickOptions& options
 ) {
-    return geode::Task<geode::Result<std::filesystem::path>>::runWithCallback(
-        [mode, options] (auto resolve, auto progress, auto cancelled) {
-            if (mode == geode::utils::file::PickMode::SaveFile) {
-                SaveFileParams par;
-                par.filename = options.defaultPath.has_value() ? 
-                    options.defaultPath->filename().string() : "";
+    return geode::Task<geode::Result<Path>>::runWithCallback(
+        [mode, options](auto resolve, auto /*progress*/, auto /*cancelled*/) {
+            try {
+                if (mode == PickMode::SaveFile) {
+                    SaveFileParams params{};
+                    if (options.defaultPath) {
+                        params.filename = options.defaultPath->filename().string();
+                    }
 
-                try {
-                    auto result = g_filePicker->saveFile(par)[0];
-                    std::string unixPath = result;
-                    std::string dosPath = unixToDosPath(unixPath);
-
-                    // Используем u8path для корректной обработки UTF-8
-                    std::filesystem::path filePath = pathFromUtf8(dosPath);
-
-                    resolve(geode::Result<std::filesystem::path, std::string>(geode::Ok(filePath)));
-                } catch (const std::exception& ex) {
-                    resolve(geode::Result<std::filesystem::path, std::string>(geode::Err(ex.what())));
+                    const auto result = g_filePicker->saveFile(params).at(0);
+                    Path filePath = unixToPath(result);
+                    log::info("Picked {}", filePath.string());
+                    resolveOk(resolve, filePath);
+                    return;
                 }
-            }
-            else if (mode == geode::utils::file::PickMode::OpenFile) {
-                OpenFileParams par;
 
-                try {
-                    auto result = g_filePicker->openFile(par)[0];
-                    std::string unixPath = result;
-                    std::string dosPath = unixToDosPath(unixPath);
-
-                    std::filesystem::path filePath = pathFromUtf8(dosPath);
-
-                    resolve(geode::Result<std::filesystem::path, std::string>(geode::Ok(filePath)));
-                } catch (const std::exception& ex) {
-                    resolve(geode::Result<std::filesystem::path, std::string>(geode::Err(ex.what())));
+                if (mode == PickMode::OpenFile) {
+                    OpenFileParams params{};
+                    const auto result = g_filePicker->openFile(params).at(0);
+                    Path filePath = unixToPath(result);
+                    log::info("Picked {}", filePath.string());
+                    resolveOk(resolve, filePath);
+                    return;
                 }
+            } catch (const std::exception& ex) {
+                resolve(geode::Result<Path, std::string>(geode::Err(ex.what())));
             }
         }
     );
 }
 
-geode::Task<geode::Result<std::vector<std::filesystem::path>>> linuxPickMany(
-    const geode::utils::file::FilePickOptions &options
+geode::Task<geode::Result<std::vector<Path>>> linuxPickMany(
+    const FilePickOptions&
 ) {
-    return geode::Task<geode::Result<std::vector<std::filesystem::path>>>::runWithCallback(
-        [] (auto resolve, auto progress, auto cancelled) 
-        {
-            OpenFileParams par;
-            par.multiple = true;
-
+    return geode::Task<geode::Result<std::vector<Path>>>::runWithCallback(
+        [](auto resolve, auto /*progress*/, auto /*cancelled*/) {
             try {
-                auto result = g_filePicker->openFile(par);
+                OpenFileParams params{};
+                params.multiple = true;
 
-                std::vector<std::filesystem::path> paths = {};
+                const auto results = g_filePicker->openFile(params);
+                std::vector<Path> paths;
+                paths.reserve(results.size());
 
-                for (const auto& unixPath : result) {
-                    std::string dosPath = unixToDosPath(unixPath);
-                    std::filesystem::path filePath = pathFromUtf8(dosPath);
-
-                    paths.push_back(filePath);
-
-                    log::info("Picked {}", filePath.string());
+                for (const auto& unixPath : results) {
+                    Path filePath = unixToPath(unixPath);
+                    paths.emplace_back(filePath);
                 }
 
-                resolve(geode::Result<std::vector<std::filesystem::path>, std::string>(geode::Ok(paths)));
-
+                log::info("Multi-Picker result: {}", paths);
+                resolve(geode::Result<std::vector<Path>, std::string>(geode::Ok(paths)));
+                
             } catch (const std::exception& ex) {
-                resolve(geode::Result<std::vector<std::filesystem::path>, std::string>(geode::Err(ex.what())));
+                log::info("Multi-Picker error {}", ex.what());
+                resolve(geode::Result<std::vector<Path>, std::string>(geode::Err(ex.what())));
             }
         }
     );
 }
 
 $execute {
-    Mod::get()->hook(
-		reinterpret_cast<void*>(
-			geode::addresser::getNonVirtual(
-				geode::modifier::Resolve<std::filesystem::path const&>::func(
-					&utils::file::openFolder
-				)
-			)
-		),
-		&linuxOpenFolder,
-		"utils::file::openFolder",
-		tulip::hook::TulipConvention::Stdcall		
-	).unwrap();
+    using namespace geode;
+    using namespace utils;
 
     Mod::get()->hook(
-		reinterpret_cast<void*>(
-			geode::addresser::getNonVirtual(
-				geode::modifier::Resolve<
-					file::PickMode, 
-					const file::FilePickOptions &
-				>::func(&utils::file::pick)
-			)
-		),
-		&linuxFilePick,
-		"utils::file::pick",
-		tulip::hook::TulipConvention::Stdcall		
-	).unwrap();
+        reinterpret_cast<void*>(
+            addresser::getNonVirtual(
+                modifier::Resolve<const std::filesystem::path&>::func(
+                    &file::openFolder
+                )
+            )
+        ),
+        &linuxOpenFolder,
+        "utils::file::openFolder",
+        tulip::hook::TulipConvention::Stdcall
+    ).unwrap();
 
     Mod::get()->hook(
-		reinterpret_cast<void*>(
-			geode::addresser::getNonVirtual(
-				geode::modifier::Resolve<
-					const file::FilePickOptions &
-				>::func(&utils::file::pickMany)
-			)
-		),
-		&linuxPickMany,
-		"utils::file::pickMany",
-		tulip::hook::TulipConvention::Stdcall		
-	).unwrap();
+        reinterpret_cast<void*>(
+            addresser::getNonVirtual(
+                modifier::Resolve<
+                    file::PickMode,
+                    const file::FilePickOptions&
+                >::func(&file::pick)
+            )
+        ),
+        &linuxFilePick,
+        "utils::file::pick",
+        tulip::hook::TulipConvention::Stdcall
+    ).unwrap();
+
+    Mod::get()->hook(
+        reinterpret_cast<void*>(
+            addresser::getNonVirtual(
+                modifier::Resolve<
+                    const file::FilePickOptions&
+                >::func(&file::pickMany)
+            )
+        ),
+        &linuxPickMany,
+        "utils::file::pickMany",
+        tulip::hook::TulipConvention::Stdcall
+    ).unwrap();
 }

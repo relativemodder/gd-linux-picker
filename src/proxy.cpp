@@ -1,5 +1,19 @@
 #include "proxy.hpp"
 
+std::wstring to_wstring(const char* str) {
+	std::unique_ptr<wchar_t[]> tmp = nullptr;
+	size_t sz, len;
+	len = mbstowcs(nullptr, str, 0);
+	sz = len + 1;
+	tmp.reset(new wchar_t[sz]);
+	mbstowcs(tmp.get(), str, sz);
+	return std::wstring(tmp.get());
+}
+
+std::wstring to_wstring(const std::string& str) {
+	return to_wstring(str.c_str());
+}
+
 class $modify(PickerApplication, CCApplication) {
     void platformShutdown() {
         if (g_pickerProxyProc != NULL) {
@@ -73,7 +87,7 @@ class $modify(PickerLayer, MenuLayer) {
 		si.cb = sizeof(si);
 		ZeroMemory(&pi, sizeof(pi));
 
-		if (!CreateProcess(path.c_str(), NULL, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+		if (!CreateProcessW(to_wstring(path).c_str(), NULL, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
 			log::error("Failed to launch Linux picker program: {}", GetLastError());
             CloseHandle(g_watchdogMutex);
             g_watchdogMutex = NULL;
